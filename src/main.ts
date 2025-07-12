@@ -1,8 +1,28 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  // Create the Nest Express application instance
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static files from the "public" directory
+  app.useStaticAssets(join(__dirname, '..', 'public'));
+
+  // Enable Cross-Origin Resource Sharing (CORS)
+  app.enableCors();
+
+  // Use PORT from .env or fallback to 3000
+  const port = process.env.PORT ?? 3000;
+
+  // Start listening on the specified port
+  await app.listen(port);
+
+  console.log(`Application is running on port: ${port}`);
 }
+
 bootstrap();
