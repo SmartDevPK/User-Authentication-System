@@ -69,7 +69,15 @@
     <h2>Enter Confirmation Code</h2>
     <form id="confirmationForm">
       <label for="code">Confirmation Code</label>
-      <input type="text" id="code" name="code" maxlength="6" required placeholder="Enter your code" />
+      <input
+        type="text"
+        id="code"
+        name="code"
+        maxlength="6"
+        required
+        placeholder="Enter your code"
+        autocomplete="off"
+      />
       <button type="submit">Verify</button>
       <div class="message" id="message"></div>
     </form>
@@ -82,6 +90,7 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       messageEl.textContent = '';
+      messageEl.style.color = '#e74c3c'; // Default error color
 
       const code = form.code.value.trim();
 
@@ -90,12 +99,17 @@
         return;
       }
 
+      const email = localStorage.getItem('email');
+      if (!email) {
+        messageEl.textContent = 'No email found. Please register first.';
+        return;
+      }
+
       try {
-        // Replace with your API endpoint to verify the code
-        const response = await fetch('/api/verify-code', {
+        const response = await fetch('http://localhost:5002/user/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({ email: email, code: code }),
         });
 
         const data = await response.json();
@@ -104,11 +118,9 @@
           messageEl.style.color = 'green';
           messageEl.textContent = data.message || 'Email verified successfully!';
         } else {
-          messageEl.style.color = '#e74c3c';
           messageEl.textContent = data.message || 'Invalid code. Please try again.';
         }
       } catch (error) {
-        messageEl.style.color = '#e74c3c';
         messageEl.textContent = 'An error occurred. Please try again later.';
       }
     });

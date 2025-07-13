@@ -27,4 +27,38 @@
     </form>
   </div>
 </body>
+
+<script>
+  document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault(); // Prevent default form submission
+
+    const form = e.target;
+    const data = {
+      username: form.username.value,
+      full_name: form.full_name.value,
+      email: form.email.value,
+      password: form.password.value,
+    };
+
+    try {
+      const res = await fetch('http://localhost:5002/user/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        alert(result.message);        // Show message from backend
+        window.location.href = 'confirm.html';  // Redirect after success
+      } else {
+        const error = await res.json();
+        alert('Registration failed: ' + (error.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+</script>
+
 </html>
