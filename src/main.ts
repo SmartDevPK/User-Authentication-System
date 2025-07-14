@@ -10,6 +10,11 @@ async function bootstrap() {
   // Create the Nest Express application instance
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.enableCors({
+     origin: 'http://localhost:5002',
+      credentials: true, 
+  })
+
   // Serve static files from the "public" directory
   app.useStaticAssets(join(__dirname, '..', 'public'));
 

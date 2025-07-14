@@ -14,18 +14,21 @@
       height: 100vh;
       margin: 0;
     }
+
     .container {
       background: white;
       padding: 2rem 3rem;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       width: 320px;
       text-align: center;
     }
+
     h2 {
       margin-bottom: 1rem;
       color: #333;
     }
+
     label {
       display: block;
       margin-bottom: 0.5rem;
@@ -33,6 +36,7 @@
       font-weight: 600;
       color: #555;
     }
+
     input[type="text"] {
       width: 100%;
       padding: 0.5rem;
@@ -42,6 +46,7 @@
       border-radius: 4px;
       box-sizing: border-box;
     }
+
     button {
       width: 100%;
       background-color: #4caf50;
@@ -53,9 +58,11 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
+
     button:hover {
       background-color: #45a049;
     }
+
     .message {
       margin-top: 1rem;
       font-size: 0.9rem;
@@ -86,11 +93,22 @@
   <script>
     const form = document.getElementById('confirmationForm');
     const messageEl = document.getElementById('message');
+    const email = localStorage.getItem('email');
+
+    // Debugging
+    console.log("Email from localStorage:", email);
+
+    if (!email) {
+      messageEl.textContent = 'No email found. Please register first.';
+    } else {
+      messageEl.style.color = '#333';
+      messageEl.textContent = 'Confirmation email sent to ' + email;
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       messageEl.textContent = '';
-      messageEl.style.color = '#e74c3c'; // Default error color
+      messageEl.style.color = '#e74c3c'; // Default to error color
 
       const code = form.code.value.trim();
 
@@ -99,7 +117,6 @@
         return;
       }
 
-      const email = localStorage.getItem('email');
       if (!email) {
         messageEl.textContent = 'No email found. Please register first.';
         return;

@@ -8,57 +8,92 @@
 </head>
 <body>
   <div class="container">
-    <form class="register-form" id="registerForm" action="/user/register" method="POST">
+    <form
+      class="register-form"
+      id="registerForm"
+      action="/user/register"
+      method="POST"
+    >
       <h2>Create Account</h2>
 
       <label for="username">Username</label>
-      <input type="text" id="username" name="username" placeholder="Enter username" required />
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Enter username"
+        required
+      />
 
       <label for="full_name">Full Name</label>
-      <input type="text" id="full_name" name="full_name" placeholder="Enter full name" required />
+      <input
+        type="text"
+        id="full_name"
+        name="full_name"
+        placeholder="Enter full name"
+        required
+      />
 
       <label for="email">Email Address</label>
-      <input type="email" id="email" name="email" placeholder="Enter email" required />
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="Enter email"
+        required
+      />
 
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Enter password" required />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Enter password"
+        required
+      />
 
       <button type="submit">Register</button>
     </form>
   </div>
-</body>
 
-<script>
-  document.getElementById('registerForm').addEventListener('submit', async function(e) {
-    e.preventDefault(); // Prevent default form submission
+  <script>
+    document
+      .getElementById('registerForm')
+      .addEventListener('submit', async function (e) {
+        e.preventDefault(); // Prevent default form submission
 
-    const form = e.target;
-    const data = {
-      username: form.username.value,
-      full_name: form.full_name.value,
-      email: form.email.value,
-      password: form.password.value,
-    };
+        const form = e.target;
+        const data = {
+          username: form.username.value,
+          full_name: form.full_name.value,
+          email: form.email.value,
+          password: form.password.value,
+        };
 
-    try {
-      const res = await fetch('http://localhost:5002/user/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        try {
+          const res = await fetch('http://localhost:5002/user/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            alert(result.message); 
+             localStorage.setItem('email', data.email);// Show message from backend
+            window.location.href = 'confirm.html'; // Redirect after success
+          } else {
+            const error = await res.json();
+            alert(
+              'Registration failed: ' + (error.message || 'Unknown error')
+            );
+          }
+        } catch (err) {
+          alert('Error: ' + err.message);
+        }
       });
-
-      if (res.ok) {
-        const result = await res.json();
-        alert(result.message);        // Show message from backend
-        window.location.href = 'confirm.html';  // Redirect after success
-      } else {
-        const error = await res.json();
-        alert('Registration failed: ' + (error.message || 'Unknown error'));
-      }
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
-  });
-</script>
-
+  </script>
+</body>
 </html>

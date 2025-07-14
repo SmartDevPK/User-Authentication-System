@@ -1,20 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './user-data.dto';
+import { User } from './user.entity'; // Your User entity path
 import { sendConfirmationEmail } from './lib/mailer';
 
 @Injectable()
 export class UserService {
-  // In-memory users array (for development only)
-  private users: {
-    id: number;
-    full_name: string;
-    email: string;
-    password: string;
-    username: string;
-  }[] = [];
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
-  // Temporary storage for users awaiting email confirmation
   private pendingUsers: Map<
     string,
     {
@@ -27,32 +25,28 @@ export class UserService {
     }
   > = new Map();
 
-  // Validate password strength: weak, medium, or strong
-  private validatePasswordStrength(password: string): 'weak' | 'medium' | 'strong' {
-    const strongRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    const mediumRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/;
-
-    if (strongRegex.test(password)) return 'strong';
-    if (mediumRegex.test(password)) return 'medium';
-    return 'weak';
+  // Password strength validation helper
+  private validatePasswordStrength(password: string): 'strong' | 'weak' {
+    // At least 8 characters, one uppercase, one lowercase, one number, one special character
+    const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    return strongRegex.test(password) ? 'strong' : 'weak';
   }
 
-  // Step 1: Create a pending user and send confirmation code
+  // Step 1: create pending user & send confirmation email
   async create(createUserDto: CreateUserDto) {
     const { full_name, email, password, username } = createUserDto;
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if email already exists or is pending confirmation
-    const existingEmail = this.users.find(user => user.email === normalizedEmail);
-    if (existingEmail || this.pendingUsers.has(normalizedEmail)) {
+    // Check if email already exists in DB or pending
+    const existingUser = await this.userRepository.findOne({ where: { email: normalizedEmail } });
+    if (existingUser || this.pendingUsers.has(normalizedEmail)) {
       return {
         message: 'Email already exists or is awaiting confirmation.',
         user: null,
       };
     }
 
-    // Check password strength
+    // Validate password strength (same as before)
     const strength = this.validatePasswordStrength(password);
     if (strength === 'weak') {
       return {
@@ -62,10 +56,10 @@ export class UserService {
       };
     }
 
-    // Hash the password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate confirmation code and expiry (5 minutes)
+    // Generate confirmation code & expiry
     const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000;
 
@@ -87,28 +81,40 @@ export class UserService {
     };
   }
 
-  // Step 2: Confirm the user's code and register permanently
-async confirmCode(email: string, code: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  console.log('Confirm attempt for email:', normalizedEmail);
+  // Step 2: confirm user code and insert into DB
+  async confirmCode(email: string, code: string) {
+    const normalizedEmail = email.trim().toLowerCase();
 
-  const pending = this.pendingUsers.get(normalizedEmail);
-  console.log('Pending user:', pending);
+    const pending = this.pendingUsers.get(normalizedEmail);
 
-  if (!pending) {
-    return { message: 'No pending registration found for this email.' };
-  }
+    if (!pending) {
+      return { message: 'No pending registration found for this email.', success: false };
+    }
 
-  if (Date.now() > pending.expiresAt) {
+    if (Date.now() > pending.expiresAt) {
+      this.pendingUsers.delete(normalizedEmail);
+      return { message: 'Confirmation code expired. Please register again.', success: false };
+    }
+
+    if (pending.confirmationCode !== code) {
+      return { message: 'Invalid confirmation code.', success: false };
+    }
+
+    // Create User entity instance
+    const user = this.userRepository.create({
+      full_name: pending.full_name,
+      email: pending.email,
+      username: pending.username,
+      password: pending.password,
+    });
+
+    // Save to DB
+    await this.userRepository.save(user);
+
+    // Remove from pending
     this.pendingUsers.delete(normalizedEmail);
-    return { message: 'Confirmation code expired. Please register again.' };
-  }
 
-  if (pending.confirmationCode !== code) {
-    return { message: 'Invalid confirmation code.' };
+    return { message: 'Email confirmed successfully!', success: true };
   }
-
-  // finalize registration...
 }
 
-}
