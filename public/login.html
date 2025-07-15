@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: #f2f2f2;
+  display: flex;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Container */
+.login-container {
+  background: #fff;
+  padding: 2rem 2.5rem;
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Form */
+.login-form h2 {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  transition: border 0.2s ease;
+}
+
+input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  cursor: pointer;
+  transform: translateY(-50%);
+  color: #666;
+}
+
+/* Button */
+.login-btn {
+  width: 100%;
+  background: #007bff;
+  color: white;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 5px;
+  margin-top: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.login-btn:hover {
+  background: #0056b3;
+}
+
+/* Signup link */
+.signup-link {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.signup-link a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.signup-link a:hover {
+  text-decoration: underline;
+}
+
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <form class="login-form" method="POST" action="/auth/login">
+      <h2>Login</h2>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="password" name="password" placeholder="Enter your password" required />
+          <span class="toggle-password" onclick="togglePassword()">👁</span>
+        </div>
+      </div>
+
+      <button type="submit" class="login-btn">Login</button>
+      <p class="signup-link">Don't have an account? <a href="/register">Sign up</a></p>
+    </form>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const password = document.getElementById('password');
+      password.type = password.type === 'password' ? 'text' : 'password';
+    }
+  </script>
+</body>
+</html>
