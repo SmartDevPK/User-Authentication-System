@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './user-data.dto';
-import { User } from './user.entity'; // Your User entity path
+import { User } from './user.entity';
 import { sendConfirmationEmail } from './lib/mailer';
+import { LoginAttemptService } from './LoginAttemptService';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+    private readonly loginAttemptService: LoginAttemptService,
   ) {}
 
   private pendingUsers: Map<
@@ -25,19 +29,22 @@ export class UserService {
     }
   > = new Map();
 
-  // Password strength validation helper
+  /**
+   * Validates password strength
+   */
   private validatePasswordStrength(password: string): 'strong' | 'weak' {
-    // At least 8 characters, one uppercase, one lowercase, one number, one special character
     const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     return strongRegex.test(password) ? 'strong' : 'weak';
   }
 
-  // Step 1: create pending user & send confirmation email
+  /**
+   * Step 1: Register user and send confirmation code
+   */
   async create(createUserDto: CreateUserDto) {
     const { full_name, email, password, username } = createUserDto;
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if email already exists in DB or pending
+    // Check if email is already used
     const existingUser = await this.userRepository.findOne({ where: { email: normalizedEmail } });
     if (existingUser || this.pendingUsers.has(normalizedEmail)) {
       return {
@@ -46,7 +53,7 @@ export class UserService {
       };
     }
 
-    // Validate password strength (same as before)
+    // Password strength check
     const strength = this.validatePasswordStrength(password);
     if (strength === 'weak') {
       return {
@@ -56,14 +63,12 @@ export class UserService {
       };
     }
 
-    // Hash password
+    // Hash password and create confirmation code
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Generate confirmation code & expiry
     const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000;
 
-    // Store pending user data
+    // Store pending user
     this.pendingUsers.set(normalizedEmail, {
       full_name,
       email: normalizedEmail,
@@ -73,7 +78,7 @@ export class UserService {
       expiresAt,
     });
 
-    // Send confirmation email
+    // Send email
     await sendConfirmationEmail(normalizedEmail, confirmationCode);
 
     return {
@@ -81,10 +86,11 @@ export class UserService {
     };
   }
 
-  // Step 2: confirm user code and insert into DB
+  /**
+   * Step 2: Confirm code and register user in DB
+   */
   async confirmCode(email: string, code: string) {
     const normalizedEmail = email.trim().toLowerCase();
-
     const pending = this.pendingUsers.get(normalizedEmail);
 
     if (!pending) {
@@ -100,21 +106,57 @@ export class UserService {
       return { message: 'Invalid confirmation code.', success: false };
     }
 
-    // Create User entity instance
+    // Save user to DB
     const user = this.userRepository.create({
       full_name: pending.full_name,
       email: pending.email,
       username: pending.username,
       password: pending.password,
     });
-
-    // Save to DB
     await this.userRepository.save(user);
 
-    // Remove from pending
+    // Clear from pending
     this.pendingUsers.delete(normalizedEmail);
 
     return { message: 'Email confirmed successfully!', success: true };
   }
-}
 
+  /**
+   * Validates login credentials and lockout logic
+   */
+  async validateUser(email: string, pass: string): Promise<any> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check lock status
+    if (this.loginAttemptService.isLocked(normalizedEmail)) {
+      throw new UnauthorizedException('Too many failed attempts. Try again in 40 minutes.');
+    }
+
+    const user = await this.userRepository.findOne({ where: { email: normalizedEmail } });
+
+    // Incorrect credentials
+    if (!user || !(await bcrypt.compare(pass, user.password))) {
+      this.loginAttemptService.registerFailedAttempt(normalizedEmail);
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Successful login - reset failed attempts
+    this.loginAttemptService.reset(normalizedEmail);
+    return user;
+  }
+
+  // Login user and return access token
+  async login(email: string, password: string) {
+    const user = await this.validateUser(email, password);
+    const payload = { sub: user.id, email: user.email };
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      message: 'Login Successful',
+      user: userWithoutPassword,
+      accessToken,
+    };
+  }
+}
